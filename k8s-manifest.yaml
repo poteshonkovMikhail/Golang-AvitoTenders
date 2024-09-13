@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: avito-tender-app
+  labels:
+    app: avito-tender
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: avito-tender
+  template:
+    metadata:
+      labels:
+        app: avito-tender
+    spec:
+      containers:
+      - name: avito-tender
+        image: mikhailpmikhail/avitotender-app:latest 
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SERVER_ADDRESS
+          value: "0.0.0.0:8080"
+        - name: POSTGRES_USERNAME
+          value: "postgres"
+        - name: POSTGRES_PASSWORD
+          value: "workout+5"
+        - name: POSTGRES_HOST
+          value: "db"
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_DATABASE
+          value: "AvitoTender"
+        - name: POSTGRES_CONN
+          value: "postgres://postgres:workout+5@db:5432/AvitoTender?sslmode=disable"
+        - name: POSTGRES_JDBC_URL
+          value: "jdbc:postgresql://db:5432/AvitoTender"
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: avito-tender-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: avito-tender
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: avito-tender-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: avito-tender-db
+  template:
+    metadata:
+      labels:
+        app: avito-tender-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "AvitoTender"
+        - name: POSTGRES_USER
+          value: "postgres"
+        - name: POSTGRES_PASSWORD
+          value: "workout+5"
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: db-storage
+      volumes:
+      - name: db-storage
+        persistentVolumeClaim:
+          claimName: avito-tender-db-pvc
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: avito-tender-db-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi  
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: avito-tender-db-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+  selector:
+    app: avito-tender-db
